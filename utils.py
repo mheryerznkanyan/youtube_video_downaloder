@@ -10,12 +10,24 @@ import requests
 
 
 def downalod_video(link, filepth):
-    youtubeObject = YouTube(link)
-    youtubeObject = youtubeObject.streams.get_highest_resolution()
-    try:
-        youtubeObject.download(filepth)
-    except:
-        print("An error has occurred")
+    subprocess.run(
+                    [
+                        "yt-dlp",
+                        "-S",
+                        "res,ext:mp4:m4a",
+                        "--recode",
+                        "mp4",
+                        "-o",
+                        f"{filepth}/%(title)s.%(ext)s",
+                        f"{link}",
+                    ]
+                )
+    # youtubeObject = YouTube(link)
+    # youtubeObject = youtubeObject.streams.get_highest_resolution()
+    # try:
+    #     youtubeObject.download(filepth)
+    # except:
+    #     print("An error has occurred")
 
 
 def download_csv(data: pd.DataFrame, folder: str):
@@ -35,7 +47,7 @@ def download_csv(data: pd.DataFrame, folder: str):
         "author": [],
         "title": [],
         "length": [],
-        "approx_filesize": [],
+        # "approx_filesize": [],
         "views": [],
     }
 
@@ -48,19 +60,19 @@ def download_csv(data: pd.DataFrame, folder: str):
             print(f"Video {link} is unavaialable, skipping.\n")
         else:
             try:
-                print(f"Downloading video {i+1}. {link}")
-                subprocess.run(
-                    [
-                        "yt-dlp",
-                        "-S",
-                        "res,ext:mp4:m4a",
-                        "--recode",
-                        "mp4",
-                        "-o",
-                        f"{folder}/%(title)s.%(ext)s",
-                        f"{link}",
-                    ]
-                )
+                # print(f"Downloading video {i+1}. {link}")
+                # subprocess.run(
+                #     [
+                #         "yt-dlp",
+                #         "-S",
+                #         "res,ext:mp4:m4a",
+                #         "--recode",
+                #         "mp4",
+                #         "-o",
+                #         f"{folder}/%(title)s.%(ext)s",
+                #         f"{link}",
+                #     ]
+                # )
                 data_dict["link"].append(link)
                 data_dict["title"].append(yt.title)
                 data_dict["author"].append(yt.author)

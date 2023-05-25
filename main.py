@@ -8,7 +8,7 @@ from utils import search, download_csv, downalod_video
 
 # Streamlit app
 def main():
-    st.title("CSV Generator")
+    st.title("YouTube Video Downloader")
 
     filepath = r"./"
     video_filepath = r"./ouput_videos"
@@ -26,7 +26,9 @@ def main():
 
             df = download_csv(data, filepath)
             df.to_csv(os.path.join(filepath, r"videos_data.csv"))
-            map(lambda x: downalod_video(x, video_filepath), df["link"])
+
+            print(f"Downloading video")
+            _ = list(map(lambda x: downalod_video(x, video_filepath), df["link"].to_list()))
 
             st.success("CSV file generated!")
             st.success("Video files downlaoded!")
