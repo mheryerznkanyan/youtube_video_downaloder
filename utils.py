@@ -8,6 +8,12 @@ import pandas as pd
 from bs4 import BeautifulSoup
 import requests
 import json
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+import time 
+from webdriver_manager.chrome import ChromeDriverManager 
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service as ChromeService
 
 
 SCROLL_PAUSE_TIME = 2
@@ -71,51 +77,6 @@ def download_csv(data: pd.DataFrame, folder: str):
     return df
 
 
-# def search(search_keyword, videos_quantity=10):
-
-#     """
-#     The method gets a string and an integer as a parameter,
-#     where string is a pattern and integer is a quantity of the videos that we need to output.
-#     The method performs a search through the video titles on YouTube by the given pattern.
-#     And as a result returns list of videos’ full titles with its corresponding links.
-
-#     search_keyword: required pattern,
-#     videos_quantity: a quantity of the videos that we need to output
-#     """
-
-#     search_keyword = search_keyword.replace(" ", "+")
-#     html = urllib.request.urlopen(
-#         "https://www.youtube.com/results?search_query=" + search_keyword
-#     )
-#     ids = re.findall(r"watch\?v=(\S{11})", html.read().decode())
-#     video_ids = list(set(ids))
-
-#     csv_elems = {}
-#     for i in range(videos_quantity):
-#         url = "https://www.youtube.com/watch?v=" + video_ids[i]
-
-#         response = requests.get(url)
-#         html_content = response.text
-#         soup = BeautifulSoup(html_content, "html.parser")
-
-#         title_element = soup.find("title")
-#         title = title_element.text.strip()
-#         key = title
-#         key = key.replace("(Official Video)", "")
-#         key = key.replace("YouTube", "")
-#         csv_elems[key] = url
-
-#     df = pd.DataFrame(csv_elems.items(), columns=["Title", "Link"])
-#     df.index = df.index + 1
-#     df.Title = df.Title.str[:-2]
-#     return df
-
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-import time 
-from webdriver_manager.chrome import ChromeDriverManager 
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service as ChromeService
 
 
 def search(search_keyword, videos_quantity = 10):
@@ -176,6 +137,92 @@ def search(search_keyword, videos_quantity = 10):
     df.Title = df.Title.str[:-2]
     return df 
 
+
+
+def search_alternative(search_keyword, videos_quantity=10):
+    SCROLL_PAUSE_TIME = 2
+    
+    MULTIPLIER = 2
+    
+    filtered_df=pd.DataFrame()
+    
+    video_links = []
+    
+    scroll_pause_time = 2 
+    # Time to pause between scrolls
+    df = pd.DataFrame()
+    
+    
+    search_keyword = search_keyword.replace(" ", "+")
+    url = "https://www.youtube.com/results?search_query=" + search_keyword
+    
+    # Configure Selenium to use a headless browser (e.g., Chrome)
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    driver = webdriver.Chrome(ChromeDriverManager().install())
+
+    driver.get(url)
+    time.sleep(2)  
+
+    # Scroll the page to load more videos
+    
+    last_height = driver.execute_script("return document.documentElement.scrollHeight")
+
+    # decision="again"
+    while filtered_df.shape[0] < videos_quantity:  
+        video_q=int(videos_quantity*MULTIPLIER)
+        # print(driver.find_elements(By.CSS_SELECTOR, "ytd-video-renderer"))
+        num_ready_videos = len(driver.find_elements(By.CSS_SELECTOR, "ytd-video-renderer"))
+        
+        
+        while num_ready_videos < video_q:
+            driver.execute_script("window.scrollTo(0, document.documentElement.scrollHeight);")
+            time.sleep(scroll_pause_time)
+            new_height = driver.execute_script("return document.documentElement.scrollHeight")
+            if new_height == last_height:
+                break
+            last_height = new_height
+            num_ready_videos = len(driver.find_elements(By.CSS_SELECTOR, "ytd-video-renderer"))
+            
+            # Extract video links
+        video_elements = driver.find_elements(By.CSS_SELECTOR, "ytd-video-renderer")
+        print('num_ready_videos',num_ready_videos)
+        print('video_q',video_q)
+        for i in range(num_ready_videos):
+            video_link_element = video_elements[i].find_element(By.CSS_SELECTOR, "a#thumbnail").get_attribute("href")
+            video_links.append(video_link_element)
+
+          # Close the browser
+
+        # Create dataframe from video links
+        csv_elems = {}
+        for video_link in video_links:
+            response = requests.get(video_link)
+            html_content = response.text
+            soup = BeautifulSoup(html_content, "html.parser")
+
+            title_element = soup.find("title")
+            title = title_element.text.strip()
+            key = title
+            key = key.replace("(Official Video)", "")
+            key = key.replace("YouTube", "")
+            csv_elems[key] = video_link
+
+        df = pd.DataFrame(csv_elems.items(), columns=["Title", "Link"])
+        df.index = df.index + 1
+        df.Title = df.Title.str[:-2]
+        
+        #Filtering from not related videos
+
+        filtered_df = df[df["Title"].str.lower().str.contains(search_keyword.lower(), na=False)]
+
+        
+        
+        MULTIPLIER+=1
+    driver.quit()
+    return filtered_df.iloc[0:videos_quantity,]
 
 if __name__ == '__main__' :
     search(search_keyword='aram',videos_quantity = 30)
